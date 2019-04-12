@@ -34,10 +34,21 @@ urlinfo_t *parse_url(char *url)
 
   urlinfo_t *urlinfo = malloc(sizeof(urlinfo_t));
 
-  urlinfo->hostname="localhost";
-  urlinfo->port="3490";
-  urlinfo->path="/d20";
+  char *ptr;
+  ptr = strchr(hostname, ':');
+  ptr[0] = 0;
 
+  port = strdup(ptr + 1);
+  ptr = strchr(port, '/');
+
+  path = strdup(ptr);
+  ptr[0] = 0;
+
+  urlinfo->hostname=hostname;
+  urlinfo->port=port;
+  urlinfo->path=path;
+
+  return urlinfo;
 
   /*
     We can parse the input URL by doing the following:
@@ -54,7 +65,6 @@ urlinfo_t *parse_url(char *url)
   // IMPLEMENT ME! //
   ///////////////////
 
-  return urlinfo;
 }
 
 /**
@@ -98,8 +108,8 @@ int main(int argc, char *argv[])
   // }
 
   // urlinfo_t parsed_url = parse_url(argv[0]);
-  // urlinfo_t *parsed_url = parse_url(argv[0]);
-  urlinfo_t *parsed_url = parse_url("");
+  urlinfo_t *parsed_url = parse_url(argv[1]);
+  // urlinfo_t *parsed_url = parse_url("");
   
 
   int fd = get_socket(parsed_url->hostname, parsed_url->port);
