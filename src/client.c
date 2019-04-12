@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "lib.h"
+#include <ctype.h>
 
 #define BUFSIZE 4096 // max number of bytes we can get at once
 
@@ -18,6 +19,9 @@ typedef struct urlinfo_t {
   char *path;
 } urlinfo_t;
 
+#include <ctype.h>
+
+
 /**
  * Tokenize the given URL into hostname, path, and port.
  *
@@ -27,29 +31,56 @@ typedef struct urlinfo_t {
 */
 urlinfo_t *parse_url(char *url)
 {
-  // copy the input URL so as not to mutate the original
+
+
+  // convert to lower case
+  for(int i = 0; url[i]; i++){
+    url[i] = tolower(url[i]);
+  }
+
+  // advance past http:// or https://
+  char * strippedHttp = strstr(url, "http");
+  if (strippedHttp) {
+    if (strippedHttp[4] == 's') {
+      strippedHttp += 1;
+    }
+    url = strippedHttp + 7;
+  }
   char *hostname = strdup(url);
   char *port;
   char *path;
 
   urlinfo_t *urlinfo = malloc(sizeof(urlinfo_t));
 
-  /*
-    We can parse the input URL by doing the following:
+  char *ptr;
+  ptr = strchr(hostname, ':');
+  if (ptr) {
+    ptr[0] = 0;
+    port = strdup(ptr + 1);
+    ptr = strchr(port, '/');
+  } else {
+    port = strdup("80");
+    ptr = strchr(hostname, '/');
+  }
+  if (ptr) {
+    path = strdup(ptr);
+    ptr[0] = 0;
+  } else {
+    path = strdup("/");
+  }
 
-    1. Use strchr to find the first backslash in the URL (this is assuming there is no http:// or https:// in the URL).
-    2. Set the path pointer to 1 character after the spot returned by strchr.
-    3. Overwrite the backslash with a '\0' so that we are no longer considering anything after the backslash.
-    4. Use strchr to find the first colon in the URL.
-    5. Set the port pointer to 1 character after the spot returned by strchr.
-    6. Overwrite the colon with a '\0' so that we are just left with the hostname.
-  */
-
-  ///////////////////
-  // IMPLEMENT ME! //
-  ///////////////////
+  urlinfo->hostname=hostname;
+  urlinfo->port=port;
+  urlinfo->path=path;
 
   return urlinfo;
+}
+
+void free_urlinfo_t(urlinfo_t * urlinfo) {
+    free(urlinfo->hostname);
+    free(urlinfo->port);
+    free(urlinfo->path);
+    free(urlinfo);
 }
 
 /**
@@ -67,12 +98,19 @@ int send_request(int fd, char *hostname, char *port, char *path)
   const int max_request_size = 16384;
   char request[max_request_size];
   int rv;
+  int req_len = snprintf(
+    request, 
+    max_request_size,
+    "GET %s HTTP/1.1\n"
+    "Host: %s:%s\n"
+    "Connection: close\n"
+    "\n",
+    path,
+    hostname,
+    port
+    );
 
-  ///////////////////
-  // IMPLEMENT ME! //
-  ///////////////////
-
-  return 0;
+  return send(fd, request, req_len, 0);
 }
 
 int main(int argc, char *argv[])
@@ -85,6 +123,28 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  urlinfo_t *parsed_url = parse_url(argv[1]);
+  
+
+  int fd = get_socket(parsed_url->hostname, parsed_url->port);
+
+  // get fd
+  int send_res = send_request(
+    fd, 
+    parsed_url->hostname,
+    parsed_url->port,
+    parsed_url->path);
+
+
+  if (send_res > 0) {
+    while ((numbytes = recv(fd, buf, BUFSIZE - 1, 0)) > 0) {
+      // print the data we got back to stdout
+      printf("%s\n", buf);
+    }   
+  }
+
+  free_urlinfo_t(parsed_url);
+  close(fd);
   /*
     1. Parse the input URL
     2. Initialize a socket by calling the `get_socket` function from lib.c
