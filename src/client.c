@@ -59,14 +59,14 @@ urlinfo_t *parse_url(char *url)
     port = strdup(ptr + 1);
     ptr = strchr(port, '/');
   } else {
-    port = "80";
+    port = strdup("80");
     ptr = strchr(hostname, '/');
   }
   if (ptr) {
     path = strdup(ptr);
     ptr[0] = 0;
   } else {
-    path = "/";
+    path = strdup("/");
   }
 
   urlinfo->hostname=hostname;
@@ -74,7 +74,13 @@ urlinfo_t *parse_url(char *url)
   urlinfo->path=path;
 
   return urlinfo;
+}
 
+void free_urlinfo_t(urlinfo_t * urlinfo) {
+    free(urlinfo->hostname);
+    free(urlinfo->port);
+    free(urlinfo->path);
+    free(urlinfo);
 }
 
 /**
@@ -137,7 +143,7 @@ int main(int argc, char *argv[])
     }   
   }
 
-  free(parsed_url);
+  free_urlinfo_t(parsed_url);
   close(fd);
   /*
     1. Parse the input URL
