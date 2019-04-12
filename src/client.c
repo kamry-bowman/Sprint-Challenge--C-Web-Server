@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "lib.h"
+#include <ctype.h>
 
 #define BUFSIZE 4096 // max number of bytes we can get at once
 
@@ -18,6 +19,9 @@ typedef struct urlinfo_t {
   char *path;
 } urlinfo_t;
 
+#include <ctype.h>
+
+
 /**
  * Tokenize the given URL into hostname, path, and port.
  *
@@ -27,7 +31,21 @@ typedef struct urlinfo_t {
 */
 urlinfo_t *parse_url(char *url)
 {
-  // copy the input URL so as not to mutate the original
+
+
+  // convert to lower case
+  for(int i = 0; url[i]; i++){
+    url[i] = tolower(url[i]);
+  }
+
+  // advance past http:// or https://
+  char * strippedHttp = strstr(url, "http");
+  if (strippedHttp) {
+    if (strippedHttp[4] == 's') {
+      strippedHttp += 1;
+    }
+    url = strippedHttp + 7;
+  }
   char *hostname = strdup(url);
   char *port;
   char *path;
@@ -36,34 +54,26 @@ urlinfo_t *parse_url(char *url)
 
   char *ptr;
   ptr = strchr(hostname, ':');
-  ptr[0] = 0;
-
-  port = strdup(ptr + 1);
-  ptr = strchr(port, '/');
-
-  path = strdup(ptr);
-  ptr[0] = 0;
+  if (ptr) {
+    ptr[0] = 0;
+    port = strdup(ptr + 1);
+    ptr = strchr(port, '/');
+  } else {
+    port = "80";
+    ptr = strchr(hostname, '/');
+  }
+  if (ptr) {
+    path = strdup(ptr);
+    ptr[0] = 0;
+  } else {
+    path = "/";
+  }
 
   urlinfo->hostname=hostname;
   urlinfo->port=port;
   urlinfo->path=path;
 
   return urlinfo;
-
-  /*
-    We can parse the input URL by doing the following:
-
-    1. Use strchr to find the first backslash in the URL (this is assuming there is no http:// or https:// in the URL).
-    2. Set the path pointer to 1 character after the spot returned by strchr.
-    3. Overwrite the backslash with a '\0' so that we are no longer considering anything after the backslash.
-    4. Use strchr to find the first colon in the URL.
-    5. Set the port pointer to 1 character after the spot returned by strchr.
-    6. Overwrite the colon with a '\0' so that we are just left with the hostname.
-  */
-
-  ///////////////////
-  // IMPLEMENT ME! //
-  ///////////////////
 
 }
 
@@ -102,14 +112,12 @@ int main(int argc, char *argv[])
   int sockfd, numbytes;  
   char buf[BUFSIZE];
 
-  // if (argc != 2) {
-  //   fprintf(stderr,"usage: client HOSTNAME:PORT/PATH\n");
-  //   exit(1);
-  // }
+  if (argc != 2) {
+    fprintf(stderr,"usage: client HOSTNAME:PORT/PATH\n");
+    exit(1);
+  }
 
-  // urlinfo_t parsed_url = parse_url(argv[0]);
   urlinfo_t *parsed_url = parse_url(argv[1]);
-  // urlinfo_t *parsed_url = parse_url("");
   
 
   int fd = get_socket(parsed_url->hostname, parsed_url->port);
